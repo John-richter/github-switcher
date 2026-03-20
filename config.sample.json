@@ -3,11 +3,13 @@
   "accounts": [
     {
       "name": "account-one",
-      "claude_config_dir": "~/.claude-account-one"
+      "claude_config_dir": "~/.claude-account-one",
+      "auto_login": true
     },
     {
       "name": "account-two",
-      "claude_config_dir": "~/.claude-account-two"
+      "claude_config_dir": "~/.claude-account-two",
+      "auto_login": false
     }
   ],
   "gh_path": "/usr/local/bin/gh",

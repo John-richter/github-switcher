@@ -58,12 +58,22 @@ def switch_to(account_name):
 def open_claude_terminal(account, skip_permissions):
     claude = account.get("claude_path", CLAUDE)
     config_dir = account.get("claude_config_dir")
+    auto_login = account.get("auto_login", False)
 
-    cmd = claude
+    base = claude
     if config_dir:
-        cmd += f" --config-dir {os.path.expanduser(config_dir)}"
-    if skip_permissions:
-        cmd += " --dangerously-skip-permissions"
+        base += f" --config-dir {os.path.expanduser(config_dir)}"
+
+    if auto_login:
+        login_cmd = f"{base} auth login"
+        launch_cmd = base
+        if skip_permissions:
+            launch_cmd += " --dangerously-skip-permissions"
+        cmd = f"{login_cmd} && {launch_cmd}"
+    else:
+        cmd = base
+        if skip_permissions:
+            cmd += " --dangerously-skip-permissions"
 
     script = f'tell application "{TERMINAL}" to do script "{cmd}"'
     subprocess.Popen(["osascript", "-e", script])
