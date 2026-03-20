@@ -53,7 +53,7 @@ def open_claude_terminal(skip_permissions):
 class GitHubSwitcher(rumps.App):
     def __init__(self):
         self.active = get_active_account()
-        self.skip_permissions = False
+        self.skip_permissions = {account: False for account in ACCOUNTS}
         super().__init__(f"GH: {self.active}", quit_button=None)
         self.build_menu()
 
@@ -71,27 +71,27 @@ class GitHubSwitcher(rumps.App):
                 "Open Claude Terminal",
                 callback=self.make_open_claude(account)
             )
+            skip_item = rumps.MenuItem(
+                "Dangerously Skip Permissions",
+                callback=self.make_toggle_skip(account)
+            )
+            skip_item.state = self.skip_permissions[account]
 
             submenu = rumps.MenuItem(label)
             submenu.add(switch_item)
+            submenu.add(rumps.separator)
             submenu.add(claude_item)
+            submenu.add(skip_item)
             self.menu.add(submenu)
-
-        self.menu.add(rumps.separator)
-
-        skip_item = rumps.MenuItem(
-            "Dangerously Skip Permissions",
-            callback=self.toggle_skip_permissions
-        )
-        skip_item.state = self.skip_permissions
-        self.menu.add(skip_item)
 
         self.menu.add(rumps.separator)
         self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
 
-    def toggle_skip_permissions(self, sender):
-        self.skip_permissions = not self.skip_permissions
-        sender.state = self.skip_permissions
+    def make_toggle_skip(self, account):
+        def toggle(sender):
+            self.skip_permissions[account] = not self.skip_permissions[account]
+            sender.state = self.skip_permissions[account]
+        return toggle
 
     def make_switch(self, account):
         def switch(_):
@@ -107,7 +107,7 @@ class GitHubSwitcher(rumps.App):
             self.active = get_active_account()
             self.title = f"GH: {self.active}"
             self.build_menu()
-            open_claude_terminal(self.skip_permissions)
+            open_claude_terminal(self.skip_permissions[account])
         return open_claude
 
 
