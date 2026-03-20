@@ -1,6 +1,15 @@
 {
   "_comment": "Copy this file to config.json and fill in your values. config.json is gitignored.",
-  "accounts": ["account-one", "account-two"],
+  "accounts": [
+    {
+      "name": "account-one",
+      "claude_config_dir": "~/.claude-account-one"
+    },
+    {
+      "name": "account-two",
+      "claude_config_dir": "~/.claude-account-two"
+    }
+  ],
   "gh_path": "/usr/local/bin/gh",
   "claude_path": "/usr/local/bin/claude",
   "terminal": "Terminal"

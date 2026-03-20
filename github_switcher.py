@@ -15,8 +15,19 @@ def load_config():
         return json.load(f)
 
 
+def normalize_accounts(raw):
+    """Accept either a list of strings or a list of objects."""
+    accounts = []
+    for entry in raw:
+        if isinstance(entry, str):
+            accounts.append({"name": entry})
+        else:
+            accounts.append(entry)
+    return accounts
+
+
 config = load_config()
-ACCOUNTS = config["accounts"]
+ACCOUNTS = normalize_accounts(config["accounts"])
 GH = config.get("gh_path", "/usr/local/bin/gh")
 CLAUDE = config.get("claude_path", "/usr/local/bin/claude")
 TERMINAL = config.get("terminal", "Terminal")
@@ -37,15 +48,23 @@ def get_active_account():
     return "unknown"
 
 
-def switch_to(account):
+def switch_to(account_name):
     subprocess.run(
-        [GH, "auth", "switch", "--user", account],
+        [GH, "auth", "switch", "--user", account_name],
         capture_output=True
     )
 
 
-def open_claude_terminal(skip_permissions):
-    cmd = f"{CLAUDE} --dangerously-skip-permissions" if skip_permissions else CLAUDE
+def open_claude_terminal(account, skip_permissions):
+    claude = account.get("claude_path", CLAUDE)
+    config_dir = account.get("claude_config_dir")
+
+    cmd = claude
+    if config_dir:
+        cmd += f" --config-dir {os.path.expanduser(config_dir)}"
+    if skip_permissions:
+        cmd += " --dangerously-skip-permissions"
+
     script = f'tell application "{TERMINAL}" to do script "{cmd}"'
     subprocess.Popen(["osascript", "-e", script])
 
@@ -53,19 +72,20 @@ def open_claude_terminal(skip_permissions):
 class GitHubSwitcher(rumps.App):
     def __init__(self):
         self.active = get_active_account()
-        self.skip_permissions = {account: False for account in ACCOUNTS}
+        self.skip_permissions = {a["name"]: False for a in ACCOUNTS}
         super().__init__(f"GH: {self.active}", quit_button=None)
         self.build_menu()
 
     def build_menu(self):
         self.menu.clear()
         for account in ACCOUNTS:
-            is_active = account.lower() == self.active.lower()
-            label = f"✓ {account}" if is_active else f"  {account}"
+            name = account["name"]
+            is_active = name.lower() == self.active.lower()
+            label = f"✓ {name}" if is_active else f"  {name}"
 
             switch_item = rumps.MenuItem(
                 "Active" if is_active else "Switch",
-                callback=None if is_active else self.make_switch(account)
+                callback=None if is_active else self.make_switch(name)
             )
             claude_item = rumps.MenuItem(
                 "Open Claude Terminal",
@@ -73,9 +93,9 @@ class GitHubSwitcher(rumps.App):
             )
             skip_item = rumps.MenuItem(
                 "Dangerously Skip Permissions",
-                callback=self.make_toggle_skip(account)
+                callback=self.make_toggle_skip(name)
             )
-            skip_item.state = self.skip_permissions[account]
+            skip_item.state = self.skip_permissions[name]
 
             submenu = rumps.MenuItem(label)
             submenu.add(switch_item)
@@ -87,15 +107,15 @@ class GitHubSwitcher(rumps.App):
         self.menu.add(rumps.separator)
         self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
 
-    def make_toggle_skip(self, account):
+    def make_toggle_skip(self, name):
         def toggle(sender):
-            self.skip_permissions[account] = not self.skip_permissions[account]
-            sender.state = self.skip_permissions[account]
+            self.skip_permissions[name] = not self.skip_permissions[name]
+            sender.state = self.skip_permissions[name]
         return toggle
 
-    def make_switch(self, account):
+    def make_switch(self, name):
         def switch(_):
-            switch_to(account)
+            switch_to(name)
             self.active = get_active_account()
             self.title = f"GH: {self.active}"
             self.build_menu()
@@ -103,11 +123,12 @@ class GitHubSwitcher(rumps.App):
 
     def make_open_claude(self, account):
         def open_claude(_):
-            switch_to(account)
+            name = account["name"]
+            switch_to(name)
             self.active = get_active_account()
             self.title = f"GH: {self.active}"
             self.build_menu()
-            open_claude_terminal(self.skip_permissions[account])
+            open_claude_terminal(account, self.skip_permissions[name])
         return open_claude
 
 
